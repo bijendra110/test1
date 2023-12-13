@@ -1,28 +1,42 @@
-name: SQL for GitHub Actions
+name: Connect to DSE Cassandra in Azure VM
 
 on:
-push:
-    branches: [ main ]
-pull_request:
-    branches: [ main ]
-
+  push:
+    branches:
+      - main
 
 jobs:
-build:
-    runs-on: windows-latest
+  connect-to-cassandra:
+    runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v1
-    - uses: azure/login@v1
-    with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-- uses: azure/sql-action@v2
-  with:
-    connection-string: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
-    path: './Database.dacpac'
-    action: 'Publish'
+    - name: Set up Java
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'adopt'
+        java-version: '11'
 
-    # Azure logout 
-- name: logout
-  run: |
-     az logout
+    - name: Install DataStax Java Driver for Cassandra
+      run: |
+        curl -L https://downloads.datastax.com/jdbc/jdbc-driver.tar.gz | tar xz
+        sudo mv cassandra-driver-*/lib/* /usr/share/java/
+        echo "::add-path::/usr/share/java/"
+
+    - name: Connect to DSE Cassandra
+      run: |
+        export CASSANDRA_IP="<your_vm_ip>"
+        export CASSANDRA_USERNAME="<your_cassandra_username>"
+        export CASSANDRA_PASSWORD="<your_cassandra_password>"
+        export KEY_PATH="<your_key_path>"
+        
+        # Example: Use cqlsh to connect and execute queries
+        cqlsh $CASSANDRA_IP -u $CASSANDRA_USERNAME -p $CASSANDRA_PASSWORD --ssl -e "SELECT * FROM system.local;"
+
+      env:
+        CASSANDRA_IP: ${{ secrets.CASSANDRA_IP }}
+        CASSANDRA_USERNAME: ${{ secrets.CASSANDRA_USERNAME }}
+        CASSANDRA_PASSWORD: ${{ secrets.CASSANDRA_PASSWORD }}
+        KEY_PATH: ${{ secrets.KEY_PATH }}
